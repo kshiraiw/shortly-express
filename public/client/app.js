@@ -3,8 +3,7 @@ window.Shortly = Backbone.View.extend({
 
   events: {
     'click li a.index':  'renderIndexView',
-    'click li a.create': 'renderCreateView',
-    'click li a.logout': 'renderLogoutView'
+    'click li a.create': 'renderCreateView'
   },
 
   initialize: function(){
@@ -30,15 +29,6 @@ window.Shortly = Backbone.View.extend({
   renderCreateView: function(e){
     e && e.preventDefault();
     this.router.navigate('/create', { trigger: true });
-  },
-
-  renderLogoutView: function(e) {
-    e && e.preventDefault();
-    // console.log('logout triggered')
-    // $.get('/logout');
-    this.router.navigate('/logout', {trigger: true});
-    window.location.href = '/logout';
-    
   },
 
   updateNav: function(routeName){

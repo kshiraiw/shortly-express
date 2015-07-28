@@ -15,7 +15,6 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
-// app.use(cookieParser());
 app.use(session( {
   secret: 'keyboard cat',
   resave: true,
@@ -31,35 +30,36 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// app.use(function(req, res, next) {
-//   var sess = req.session;
-// })
-// app.use('/create', restrict);
+app.use(function(req, res, next) {
+  res.locals.user = req.user;
+  res.locals.session = req.session;
+  next();
+});
+
 app.use(express.static(__dirname + '/public'));
 
-var sess;
-
 function restrict(req, res, next) {
-  // console.log("FROM Restrict", sess)
+  var sess = res.locals.session;
   if (sess) {
     next();
 
   } else {
     req.session.error = 'Access Denied!!';
-    // console.log("rawr")
     res.redirect('/login');
   }
 }
 
-// var login = function(req, res, user) {
-//   req.session.regenerate(function(){
-//     req.session.user = user.get('username');
-//     console.log('req.session', req.sessionID);
-//     req.session.save();
-//     console.log( "From Login Post", req.session.user);
-//     res.redirect('/');
-//   });
-// }
+var login = function(req, res, user) {
+  sess = req.session.regenerate(function(err){
+    if(err){
+      console.log(err);
+    } else {
+      sess.user = user.get('username');
+      sess.save();
+      res.redirect('/');
+    }
+  });
+}
 
 
 app.get('/', restrict,
@@ -127,26 +127,11 @@ app.get('/signup',
     res.render('signup'); 
   });
 
-// var logout = function(req, res, next){
-//   req.session.destroy();
-//   res.redirect('/');
-// };
-
-// app.get('/logout', logout() );
 app.get('/logout', function(req, res, next) {
-  console.log(req.method, "REQ METHOD")
-  console.log(req.session)
-  
   req.session.destroy(function(){
-    // if(err){
-    //   console.log(err);
-    // } else {
-    //   console.log("Session DESTROYED", req.session);
       res.redirect('/login');
     }
   );
-  // req.session = null;
-  console.log("logged out in shortly")
   
 });
 
@@ -154,24 +139,13 @@ app.post('/signup',
   function(req, res){
     Users.query({where: {username: req.body.username}}).fetch().then(function(results){
       if(results.length > 0){
-        console.log("username taken");
         res.redirect('/signup');
       } else {
-        console.log("Creating new user");
         var user = new User({
           username: req.body.username, 
           password: req.body.password
         }).save().then(function(user){
-          sess = req.session.regenerate(function(err){
-            if(err){
-              console.log(err);
-            } else {
-              sess.user = user.get('username');
-              sess.save();
-              res.redirect('/');
-            }
-          });
-          // login(req, res, user);
+          login(req, res, user);
         });
       }
     });
@@ -185,27 +159,11 @@ app.post('/login', function(req, res) {
   Users.query({where: {
     username: user.get('username')
   }}).fetchOne().then(function(hashed) {
-    console.log("Got Hashed", hashed.get('password'));
     bcrypt.compare(user.get('password'), hashed.get('password'), function(err, result) {
-      console.log("Compared", result)
       if (result) {
-        sess = req.session.regenerate(function(err){
-          if(err) {
-            console.log(err);
-          } 
-          else {
-            sess.user = user.get('username');
-            console.log('req.sessionID', req.sessionID);
-            sess.save();
-            // console.log( "req.session.user From Login Post", req.session.user);
-            res.redirect('/');
-            console.log('sess', sess);
-
-          }
-        });
+        login(req, res, user);
       } 
       else {
-        console.log("inside outer else");
         res.redirect('/login');
       }
     });
