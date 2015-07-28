@@ -2,6 +2,9 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
+var cookieParser = require('cookie-parser');
+var bcrypt = require('bcrypt-nodejs');
 
 
 var db = require('./app/config');
@@ -12,6 +15,17 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
+// app.use(cookieParser());
+app.use(session( {
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: true }
+} ));
+
+var sess;
+
+// console.log("sess.user", sess.user);
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
@@ -20,27 +34,56 @@ app.use(partials());
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
+
 app.use(express.static(__dirname + '/public'));
+// app.use(function(req, res, next) {
+//   var sess = req.session;
+//   console.log(sess)
+// });
+// // app.use('/create', restrict);
+
+function restrict(req, res, next) {
+  console.log("FROM Restrict", sess)
+
+  if (sess.user) {
+    next();
+
+  } else {
+    sess.error = 'Access Denied!!';
+    // console.log("rawr")
+    res.redirect('/login');
+  }
+}
+
+var login = function(req, res, user) {
+  sess.regenerate(function(){
+    sess.user = user.get('username');
+    console.log('sess', sess);
+    sess.save();
+    console.log( "From Login Post", sess.user);
+    res.redirect('/');
+  });
+}
 
 
-app.get('/', 
+app.get('/', restrict,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create', restrict,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links', restrict,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links', restrict,
 function(req, res) {
   var uri = req.body.url;
 
@@ -78,7 +121,55 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/login',
+  function(req,res) {
+    res.render('login'); 
+  });
 
+app.get('/signup',
+  function(req,res) {
+    res.render('signup'); 
+  });
+
+app.post('/signup', 
+  function(req, res){
+    var user = new User({
+      username: req.body.username, 
+      password: req.body.password
+    }).save().then(function(user){
+      login(req, res, user);
+    });
+  });
+
+app.post('/login', function(req, res) {
+  var user = new User({
+    username: req.body.username,
+    password: req.body.password
+  });
+  Users.query({where: {
+    username: user.get('username')
+  }}).fetchOne().then(function(hashed) {
+    console.log("Got Hashed", hashed.get('password'));
+    bcrypt.compare(user.get('password'), hashed.get('password'), function(err, result) {
+      console.log("Compared", result)
+      if (result) {
+        sess = req.session;
+        // login(req, res, user);
+          sess.regenerate(function(){
+          sess.user = user.get('username');
+          console.log('sess', sess);
+          // sess.save();
+          // console.log( "From Login Post", sess.user);
+          res.render('index');
+          
+        });
+      } 
+      else {
+        res.redirect('/login');
+      }
+    });
+  });
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
