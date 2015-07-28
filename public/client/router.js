@@ -25,7 +25,8 @@ Shortly.Router = Backbone.Router.extend({
 
   logout: function(){
     // TODO make it go to login view
-    this.swapView(new Shortly.createLinkView({template: Templates['login']}));    
+    // this.swapView(new Shortly.createLinkView({template: Templates['login']}));    
+    
   }
 });
   
