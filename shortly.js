@@ -17,7 +17,7 @@ var Click = require('./app/models/click');
 var app = express();
 app.use(session( {
   secret: 'keyboard cat',
-  resave: true,
+  resave: false,
   saveUninitialized: true,
   cookie: { secure: true }
 } ));
@@ -30,17 +30,12 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(function(req, res, next) {
-  res.locals.user = req.user;
-  res.locals.session = req.session;
-  next();
-});
 
 app.use(express.static(__dirname + '/public'));
 
+var sess;
 function restrict(req, res, next) {
-  var sess = res.locals.session;
-  if (sess) {
+  if (sess && sess.user) {
     next();
 
   } else {
@@ -128,10 +123,8 @@ app.get('/signup',
   });
 
 app.get('/logout', function(req, res, next) {
-  req.session.destroy(function(){
-      res.redirect('/login');
-    }
-  );
+  sess.user = null;
+  res.redirect('/login');
   
 });
 
