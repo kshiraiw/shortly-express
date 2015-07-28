@@ -23,10 +23,6 @@ app.use(session( {
   cookie: { secure: true }
 } ));
 
-var sess;
-
-// console.log("sess.user", sess.user);
-
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
@@ -35,35 +31,35 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(express.static(__dirname + '/public'));
 // app.use(function(req, res, next) {
 //   var sess = req.session;
-//   console.log(sess)
-// });
-// // app.use('/create', restrict);
+// })
+// app.use('/create', restrict);
+app.use(express.static(__dirname + '/public'));
+
+var sess;
 
 function restrict(req, res, next) {
-  console.log("FROM Restrict", sess)
-
-  if (sess.user) {
+  // console.log("FROM Restrict", sess)
+  if (sess) {
     next();
 
   } else {
-    sess.error = 'Access Denied!!';
+    req.session.error = 'Access Denied!!';
     // console.log("rawr")
     res.redirect('/login');
   }
 }
 
-var login = function(req, res, user) {
-  sess.regenerate(function(){
-    sess.user = user.get('username');
-    console.log('sess', sess);
-    sess.save();
-    console.log( "From Login Post", sess.user);
-    res.redirect('/');
-  });
-}
+// var login = function(req, res, user) {
+//   req.session.regenerate(function(){
+//     req.session.user = user.get('username');
+//     console.log('req.session', req.sessionID);
+//     req.session.save();
+//     console.log( "From Login Post", req.session.user);
+//     res.redirect('/');
+//   });
+// }
 
 
 app.get('/', restrict,
@@ -83,7 +79,7 @@ function(req, res) {
   });
 });
 
-app.post('/links', restrict,
+app.post('/links', 
 function(req, res) {
   var uri = req.body.url;
 
@@ -131,13 +127,53 @@ app.get('/signup',
     res.render('signup'); 
   });
 
+// var logout = function(req, res, next){
+//   req.session.destroy();
+//   res.redirect('/');
+// };
+
+// app.get('/logout', logout() );
+app.get('/logout', function(req, res, next) {
+  console.log(req.method, "REQ METHOD")
+  console.log(req.session)
+  
+  req.session.destroy(function(){
+    // if(err){
+    //   console.log(err);
+    // } else {
+    //   console.log("Session DESTROYED", req.session);
+      res.redirect('/login');
+    }
+  );
+  // req.session = null;
+  console.log("logged out in shortly")
+  
+});
+
 app.post('/signup', 
   function(req, res){
-    var user = new User({
-      username: req.body.username, 
-      password: req.body.password
-    }).save().then(function(user){
-      login(req, res, user);
+    Users.query({where: {username: req.body.username}}).fetch().then(function(results){
+      if(results.length > 0){
+        console.log("username taken");
+        res.redirect('/signup');
+      } else {
+        console.log("Creating new user");
+        var user = new User({
+          username: req.body.username, 
+          password: req.body.password
+        }).save().then(function(user){
+          sess = req.session.regenerate(function(err){
+            if(err){
+              console.log(err);
+            } else {
+              sess.user = user.get('username');
+              sess.save();
+              res.redirect('/');
+            }
+          });
+          // login(req, res, user);
+        });
+      }
     });
   });
 
@@ -153,18 +189,23 @@ app.post('/login', function(req, res) {
     bcrypt.compare(user.get('password'), hashed.get('password'), function(err, result) {
       console.log("Compared", result)
       if (result) {
-        sess = req.session;
-        // login(req, res, user);
-          sess.regenerate(function(){
-          sess.user = user.get('username');
-          console.log('sess', sess);
-          // sess.save();
-          // console.log( "From Login Post", sess.user);
-          res.render('index');
-          
+        sess = req.session.regenerate(function(err){
+          if(err) {
+            console.log(err);
+          } 
+          else {
+            sess.user = user.get('username');
+            console.log('req.sessionID', req.sessionID);
+            sess.save();
+            // console.log( "req.session.user From Login Post", req.session.user);
+            res.redirect('/');
+            console.log('sess', sess);
+
+          }
         });
       } 
       else {
+        console.log("inside outer else");
         res.redirect('/login');
       }
     });

@@ -80,13 +80,13 @@ describe('', function() {
         };
         // login via form and save session info
         requestWithSession(options, function(error, res, body) {
-          done();
+          // done();
         });
       });
     });
   
 
-    it('Only shortens valid urls, returning a 404 - Not found for invalid urls', function(done) {
+    it('Only shortens valid urls, returning a 404 - Not found for invalid urls', function (done) {
       var options = {
         'method': 'POST',
         'uri': 'http://127.0.0.1:4568/links',
@@ -159,7 +159,7 @@ describe('', function() {
         // save a link to the database
         link = new Link({
           url: 'http://roflzoo.com/',
-          title: 'Funny animal pictures, funny animals, funniest dogs',
+          title: 'Funny pictures of animals, funny dog pictures',
           base_url: 'http://127.0.0.1:4568'
         });
         link.save().then(function(){
@@ -204,7 +204,7 @@ describe('', function() {
         };
 
         requestWithSession(options, function(error, res, body) {
-          expect(body).to.include('"title":"Funny animal pictures, funny animals, funniest dogs"');
+          expect(body).to.include('"title":"Funny pictures of animals, funny dog pictures"');
           expect(body).to.include('"code":"' + link.get('code') + '"');
           done();
         });
@@ -218,6 +218,8 @@ describe('', function() {
 
     it('Redirects to login page if a user tries to access the main page and is not signed in', function(done) {
       request('http://127.0.0.1:4568/', function(error, res, body) {
+        console.log(res.req.path)
+        console.log(res.req)
         expect(res.req.path).to.equal('/login');
         done();
       });
